@@ -1,11 +1,12 @@
 import React, { useState } from "react";
 import { addExpense } from "../services/api";
 
-const AddExpense = ({ onAddExpense, categories }) => {
+const AddExpense = ({ onAddExpense, setCategories, categories }) => {
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("");
 
+  console.log("setCategories:", setCategories);
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -17,11 +18,15 @@ const AddExpense = ({ onAddExpense, categories }) => {
       date: new Date().toISOString(),
       category: selectedCategory ? selectedCategory._id : null,
     };
+    console.log("Expense Payload:", newExpense);
 
     try {
-      const addedExpense = await addExpense(newExpense);
+      const addedExpense = await addExpense(newExpense, setCategories);
 
       if (addedExpense) {
+        const updatedCategories = addedExpense.category;
+        // Update categories state with updated category data
+        setCategory(updatedCategories._id || updatedCategories.name);
         onAddExpense({
           ...newExpense,
           _id: addedExpense._id,

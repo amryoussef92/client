@@ -1,8 +1,14 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
 import AddExpense from "./AddExpense";
 import ExpensesList from "./ExpensesList";
-import { deleteExpense, updateExpense, getCategories } from "../services/api";
+import {
+  addExpense,
+  getExpenses,
+  deleteExpense,
+  updateExpense,
+  getCategories,
+  updateCategorySpent,
+} from "../services/api";
 
 const ExpensesPage = () => {
   const [expenses, setExpenses] = useState([]);
@@ -13,16 +19,19 @@ const ExpensesPage = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const expensesResponse = await axios.get(
-          "http://localhost:5000/api/expenses"
-        );
+        const expensesResponse = await getExpenses();
+        console.log("Fetched expenses:", expensesResponse);
         const categoriesResponse = await getCategories();
 
-        setExpenses(expensesResponse.data);
+        setExpenses(expensesResponse || []);
         setCategories(categoriesResponse);
 
         // Recalculate category balances when data is fetched
-        calculateCategoryBalances(expensesResponse.data, categoriesResponse);
+        const initialBalances = calculateCategoryBalances(
+          expensesResponse,
+          categoriesResponse
+        );
+        setCategoryBalances(initialBalances);
       } catch (error) {
         console.error("Error fetching data", error);
       }
@@ -34,7 +43,8 @@ const ExpensesPage = () => {
   // Recalculate category balances whenever expenses or categories change
   useEffect(() => {
     if (expenses.length > 0 && categories.length > 0) {
-      calculateCategoryBalances(expenses, categories);
+      const updatedBalances = calculateCategoryBalances(expenses, categories);
+      setCategoryBalances(updatedBalances);
     }
   }, [expenses, categories]); // Dependency array ensures it's recalculated on any change
   // Calculate the budget, balance, and expenses for each category
@@ -59,6 +69,7 @@ const ExpensesPage = () => {
 
     // Update state after calculating balances
     setCategoryBalances(balances);
+    return balances;
   };
 
   // Handle deletion of an expense
@@ -74,26 +85,62 @@ const ExpensesPage = () => {
   // Handle updating an expense
   const handleUpdateExpense = async (id, updatedData) => {
     const updatedExpense = await updateExpense(id, updatedData);
+
     if (updatedExpense) {
       const updatedExpenses = expenses.map((expense) =>
         expense._id === id ? { ...expense, ...updatedData } : expense
       );
       setExpenses(updatedExpenses);
-      calculateCategoryBalances(updatedExpenses, categories);
+
+      // Recalculate balances after updating the expense
+      await updateCategorySpent(updatedExpense.category, updatedExpense.amount);
+      const updatedBalances = calculateCategoryBalances(
+        updatedExpenses,
+        categories
+      );
+      setCategoryBalances(updatedBalances);
     }
   };
 
   // Handle adding a new expense
-  const handleAddExpense = (newExpense) => {
-    const updatedExpenses = [...expenses, newExpense];
-    setExpenses(updatedExpenses);
-    calculateCategoryBalances(updatedExpenses, categories);
+  const handleAddExpense = async (newExpense) => {
+    // Step 1: Add the new expense to the backend and fetch the updated data
+    const addedExpense = await addExpense(newExpense);
+
+    if (addedExpense) {
+      // Step 2: Update the expenses state with the new expense
+      const updatedExpenses = [...expenses, addedExpense];
+      setExpenses(updatedExpenses);
+
+      // Step 3: Recalculate category balances after adding the expense
+      const updatedBalances = calculateCategoryBalances(
+        updatedExpenses,
+        categories
+      );
+      setCategoryBalances(updatedBalances);
+
+      // Step 4: Optionally, update the categories state if the category info has changed
+      const updatedCategory = categories.find(
+        (category) => category._id === addedExpense.category
+      );
+      if (updatedCategory) {
+        setCategories((prevCategories) =>
+          prevCategories.map((category) =>
+            category._id === updatedCategory._id ? updatedCategory : category
+          )
+        );
+      }
+    }
   };
 
   return (
     <div>
       <h2>Expenses</h2>
-      <AddExpense onAddExpense={handleAddExpense} categories={categories} />
+      <AddExpense
+        onAddExpense={handleAddExpense}
+        categories={categories}
+        setCategories={setCategories}
+      />
       <ExpensesList
         expenses={expenses}
         onDelete={handleDeleteExpense}
