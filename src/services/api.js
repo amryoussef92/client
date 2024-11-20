@@ -40,10 +40,15 @@ export const getCategories = async () => {
 };
 
 export const addExpense = async (expense, setCategories) => {
+  if (typeof setCategories !== "function") {
+    console.error("setCategories is not a function");
+    return;
+  }
+  console.log("setCategories:", setCategories);
   try {
     const response = await api.post("/expenses", expense);
     console.log("Response:", response.data); // Log successful response
-
+    console.log("expense:", expense);
     if (response.data && response.data.category) {
       const updatedCategory = response.data.category;
       setCategories((prevCategories) =>
@@ -120,10 +125,10 @@ export const deleteExpense = async (id) => {
 
 export const updateCategorySpent = async (categoryId, amount) => {
   try {
-    const response = await axios.put(
-      "http://localhost:5000/api/categories/update-category-spent",
-      { categoryId, amount }
-    );
+    const response = await api.put("/categories/update-category-spent", {
+      categoryId,
+      amount,
+    });
     console.log("Category updated:", response.data);
     return response.data;
   } catch (error) {

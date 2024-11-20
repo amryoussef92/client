@@ -1,17 +1,25 @@
 import React, { useState } from "react";
 import { addExpense } from "../services/api";
 
-const AddExpense = ({ onAddExpense, setCategories, categories }) => {
+const AddExpense = ({ onAddExpense, categories, setCategories }) => {
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("");
 
-  console.log("setCategories:", setCategories);
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     const selectedCategory = categories.find((cat) => cat.name === category);
 
+    if (!selectedCategory) {
+      alert("Please select a valid category.");
+      return;
+    }
+
+    if (!description || !amount || isNaN(amount) || amount <= 0) {
+      alert("Please enter a valid description and amount.");
+      return;
+    }
     const newExpense = {
       description,
       amount: parseFloat(amount),
@@ -24,9 +32,9 @@ const AddExpense = ({ onAddExpense, setCategories, categories }) => {
       const addedExpense = await addExpense(newExpense, setCategories);
 
       if (addedExpense) {
-        const updatedCategories = addedExpense.category;
+        // const updatedCategories = addedExpense.category;
         // Update categories state with updated category data
-        setCategory(updatedCategories._id || updatedCategories.name);
+        // setCategory(updatedCategories._id || updatedCategories.name);
         onAddExpense({
           ...newExpense,
           _id: addedExpense._id,

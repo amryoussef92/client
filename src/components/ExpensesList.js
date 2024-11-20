@@ -7,6 +7,8 @@ const ExpensesList = ({ expenses, onDelete, onUpdate, categoryBalances }) => {
     amount: "",
   });
 
+  console.log("categoryBalances", categoryBalances);
+  console.log("expenses", expenses);
   const handleEditClick = (expense) => {
     setEditExpenseId(expense._id);
     setUpdatedExpense({
@@ -33,8 +35,15 @@ const ExpensesList = ({ expenses, onDelete, onUpdate, categoryBalances }) => {
         {expenses && expenses.length > 0 ? (
           expenses.map((expense, index) => {
             // Correct category balance lookup
-            const categoryBalance = categoryBalances[expense.category?._id];
+            const categoryBalance =
+              categoryBalances[expense.category?._id] ||
+              categoryBalances[expense.category];
 
+            console.log("Category Balances:", categoryBalances);
+            console.log(
+              "Expense Category ID:",
+              expense.category?._id || expense.category
+            );
             return (
               <li key={`${expense._id}-${index}`}>
                 {editExpenseId === expense._id ? (
@@ -62,7 +71,9 @@ const ExpensesList = ({ expenses, onDelete, onUpdate, categoryBalances }) => {
                   <div>
                     <p>
                       {expense.description}: ${expense.amount} - Category:{" "}
-                      {expense.category?.name || "No category available"}
+                      {expense.category && expense.category.name
+                        ? expense.category.name
+                        : "No category available"}
                     </p>
 
                     {/* Show category budget and balance */}

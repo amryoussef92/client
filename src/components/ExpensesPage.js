@@ -48,15 +48,26 @@ const ExpensesPage = () => {
     }
   }, [expenses, categories]); // Dependency array ensures it's recalculated on any change
   // Calculate the budget, balance, and expenses for each category
-  const calculateCategoryBalances = (expensesList, categoriesList) => {
-    const balances = {};
+  const calculateCategoryBalances = (
+    expensesList = [],
+    categoriesList = []
+  ) => {
+    const groupedExpenses = expensesList.reduce((acc, expense) => {
+      const categoryId = expense.category?._id || expense.category;
+      if (!categoryId) return acc;
 
+      if (!acc[categoryId]) {
+        acc[categoryId] = [];
+      }
+      acc[categoryId].push(expense);
+      return acc;
+    }, {});
+
+    const balances = {};
     categoriesList.forEach((category) => {
-      const categoryExpenses = expensesList.filter(
-        (expense) => expense.category === category._id
-      );
+      const categoryExpenses = groupedExpenses[category._id] || [];
       const totalExpenses = categoryExpenses.reduce(
-        (sum, expense) => sum + expense.amount,
+        (sum, expense) => sum + (expense.amount || 0),
         0
       );
 
@@ -67,8 +78,6 @@ const ExpensesPage = () => {
       };
     });
 
-    // Update state after calculating balances
-    setCategoryBalances(balances);
     return balances;
   };
 
@@ -101,35 +110,43 @@ const ExpensesPage = () => {
       setCategoryBalances(updatedBalances);
     }
   };
-
+  useEffect(() => {
+    console.log("Updated Categories:", categories);
+  }, [categories]); // Will log whenever categories state changes
   // Handle adding a new expense
   const handleAddExpense = async (newExpense) => {
-    // Step 1: Add the new expense to the backend and fetch the updated data
-    const addedExpense = await addExpense(newExpense);
+    console.log("Sending Expense Data:", newExpense); // Log to confirm category is a string
 
-    if (addedExpense) {
-      // Step 2: Update the expenses state with the new expense
-      const updatedExpenses = [...expenses, addedExpense];
-      setExpenses(updatedExpenses);
+    try {
+      // Ensure category is just the ID string (not an object)
+      const expensePayload = {
+        ...newExpense,
+        category: newExpense.category._id || newExpense.category, // If category is an object, use its _id
+      };
 
-      // Step 3: Recalculate category balances after adding the expense
-      const updatedBalances = calculateCategoryBalances(
-        updatedExpenses,
-        categories
-      );
-      setCategoryBalances(updatedBalances);
+      const addedExpense = await addExpense(expensePayload, setCategories);
+      if (addedExpense) {
+        setExpenses((prevExpenses) => [...prevExpenses, addedExpense]);
 
-      // Step 4: Optionally, update the categories state if the category info has changed
-      const updatedCategory = categories.find(
-        (category) => category._id === addedExpense.category
-      );
-      if (updatedCategory) {
-        setCategories((prevCategories) =>
-          prevCategories.map((category) =>
-            category._id === updatedCategory._id ? updatedCategory : category
-          )
+        const updatedBalances = calculateCategoryBalances(
+          [...expenses, addedExpense],
+          categories
         );
+        setCategoryBalances(updatedBalances);
+
+        const updatedCategory = categories.find(
+          (category) => category._id === addedExpense.category
+        );
+        if (updatedCategory) {
+          setCategories((prevCategories) =>
+            prevCategories.map((category) =>
+              category._id === updatedCategory._id ? updatedCategory : category
+            )
+          );
+        }
       }
+    } catch (error) {
+      console.error("Error adding expense:", error);
     }
   };
 
